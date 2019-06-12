@@ -151,11 +151,32 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Interpreter.cpp" />
     <ClCompile Include="Lexer.cpp" />
+    <ClCompile Include="Parameter.cpp" />
+    <ClCompile Include="Parser.cpp" />
+    <ClCompile Include="Predicate.cpp" />
+    <ClCompile Include="Relation.cpp" />
+    <ClCompile Include="Rule.cpp" />
     <ClCompile Include="Source.cpp" />
+    <ClCompile Include="Token.cpp" />
+    <ClCompile Include="Tuple.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="In.txt" />
+    <Text Include="in1.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Interpreter.h" />
+    <ClInclude Include="Parameter.h" />
+    <ClInclude Include="Parser.h" />
+    <ClInclude Include="Predicate.h" />
+    <ClInclude Include="Relation.h" />
+    <ClInclude Include="Rule.h" />
+    <ClInclude Include="Token.h" />
+    <ClInclude Include="Tuple.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Script.sh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

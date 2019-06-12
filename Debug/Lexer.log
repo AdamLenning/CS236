@@ -1,9 +1,4 @@
 ﻿  Lexer.cpp
-C:\Users\arl94\source\repos\Lexer\Lexer.cpp(175): warning C4018: '<': signed/unsigned mismatch
-C:\Users\arl94\source\repos\Lexer\Lexer.cpp(184): warning C4018: '<': signed/unsigned mismatch
   Source.cpp
-C:\Users\arl94\source\repos\Lexer\Lexer.cpp(175): warning C4018: '<': signed/unsigned mismatch
-C:\Users\arl94\source\repos\Lexer\Lexer.cpp(184): warning C4018: '<': signed/unsigned mismatch
   Generating Code...
-C:\Users\arl94\source\repos\Lexer\Lexer.cpp(152): warning C4715: 'Lexer::Colon::makeToken': not all control paths return a value
   Lexer.vcxproj -> C:\Users\arl94\source\repos\Lexer\Debug\Lexer.exe

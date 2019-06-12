@@ -2,15 +2,12 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include "Token.h"
 using namespace std;
 
-enum Token {
-	COMMA, PERIOD, Q_MARK, LEFT_PAREN, RIGHT_PAREN, COLON, COLON_DASH, MULTIPLY, ADD,
-	SCHEMES, FACTS, RULES, QUERIES, ID, STRING, COMMENT, WHITESPACE, UNDEFINED, MEOF
-};
-
 static int lineNum;
-static int totalTokens;
+static int tempLineNum;
+static bool isSingleLineUnterminatingBlock;
 
 class Lexer {
 	
@@ -18,7 +15,7 @@ public:
  
 	Lexer(string& input) : input(input) {
 		lineNum = 1;
-		totalTokens = 1;
+		isSingleLineUnterminatingBlock = false;
 		automata.push_back(new StringMatch(",", COMMA));
 		automata.push_back(new StringMatch(".", PERIOD));
 		automata.push_back(new StringMatch("?", Q_MARK));
@@ -27,10 +24,6 @@ public:
 		automata.push_back(new Colon());
 		automata.push_back(new StringMatch("*", MULTIPLY));
 		automata.push_back(new StringMatch("+", ADD));
-		automata.push_back(new StringMatch("Schemes", SCHEMES));
-		automata.push_back(new StringMatch("Facts", FACTS));
-		automata.push_back(new StringMatch("Rules", RULES));
-		automata.push_back(new StringMatch("Queries", QUERIES));
 		automata.push_back(new Identifier());
 		automata.push_back(new String());
 		automata.push_back(new Comment());
@@ -41,32 +34,6 @@ public:
 		for (auto a : automata) {
 			delete a;
 		}
-	}
-
-	static string toString(Token t) {
-		switch (t) {
-		case COMMA: return ("COMMA");
-		case PERIOD: return ("PERIOD");
-		case Q_MARK: return ("Q_MARK");
-		case LEFT_PAREN: return ("LEFT_PAREN");
-		case RIGHT_PAREN: return ("RIGHT_PAREN");
-		case COLON: return ("COLON");
-		case COLON_DASH: return ("COLON_DASH");
-		case MULTIPLY: return ("MULTIPLY");
-		case ADD: return ("ADD");
-		case SCHEMES: return ("SCHEMES");
-		case FACTS: return ("FACTS");
-		case RULES: return ("RULES");
-		case QUERIES: return ("QUERIES");
-		case ID: return ("ID");
-		case STRING: return ("STRING");
-		case COMMENT: return ("COMMENT");
-		case WHITESPACE: return ("WHITESPACE");
-		case UNDEFINED: return ("UNDEFINED");
-		case MEOF: return ("MEOF");
-		default: break;
-		}
-		return ("Uh oh!");
 	}
 
 	void generateTokens() {
@@ -83,15 +50,24 @@ public:
 			if (maxRead > 0) {
 				input.erase(0, maxRead);
 				maxRead = 0;
-				totalTokens++;
+				if(maxToken.getType() != WHITESPACE && maxToken.getType() != COMMENT) tokens.push_back(maxToken);
 			}
 			else {
-				cout << "Bad (" << input.front() << ")" << endl;
-				input.erase(0);
-				totalTokens++;
+				string s = "";
+				s += input.at(0);
+				tokens.push_back(Token(UNDEFINED, s, lineNum));
+				input.erase(0,1);
 			}
 		}
-		cout << "Total Tokens: " << totalTokens << endl;
+		tokens.push_back(Token(MEOF, "EOF", lineNum));
+		/*for (size_t i = 0; i < tokens.size(); i++) {
+			cout << tokens.at(i).toString();
+		}
+		cout << "Total Tokens = " << tokens.size() << endl;*/
+	}
+	
+	vector<Token>& getTokens() {
+		return tokens;
 	}
 
 	class Automaton {
@@ -103,14 +79,15 @@ public:
 
 	class StringMatch : public Automaton {
 		string stringToMatch;
-		Token tokenToMake;
+		TokenType tokenToMake;
 
 	public:
 
-		StringMatch(const string& s, Token t) :
-			stringToMatch(s), tokenToMake(t) {
+		StringMatch(const string& s, TokenType t){
+			stringToMatch = s;
+			tokenToMake = t;
 		}
-
+		
 		int read(const string& input) const {
 			if (input.size() < stringToMatch.size()) {
 				return 0;
@@ -127,8 +104,7 @@ public:
 		}
 
 		Token makeToken(const string& s) const {
-			cout <<  "(" << toString(tokenToMake) << ",\"" << s << "\"," << lineNum << ")" << endl;
-			return tokenToMake;
+			return Token(tokenToMake, s, lineNum);
 		}
 	};
 
@@ -142,13 +118,12 @@ public:
 
 		Token makeToken(const string & s) const {
 			if (s[0] == ':' && s[1] == '-') {
-				cout <<  "(" << toString(COLON_DASH) << "\":-\"" << lineNum << ")" << endl;
-				return COLON_DASH;
+				return Token(COLON_DASH, ":-", lineNum);
 			}
 			else if (s[0] == ':') {
-				cout << "(" << toString(COLON) << "\":\"" << lineNum << ")" << endl;
-				return COLON;
+				return Token(COLON, ":", lineNum);
 			}
+			else return Token(UNDEFINED, s, lineNum);
 		}
 	};
 
@@ -164,13 +139,13 @@ public:
 		}
 
 		Token makeToken(const string& s) const {
-			return WHITESPACE;
+			return Token(WHITESPACE, s, lineNum);
 		}
 	};
 
 	class Identifier : public Automaton {
 
-		int s0(int i, const string& input) const {
+		int s0(size_t i, const string& input) const {
 			const auto& c = input[i];
 			if (i < input.size() && isalpha(c)) {
 				return s1(++i, input);
@@ -179,7 +154,7 @@ public:
 			return 0;
 		}
 
-		int s1(int i, const string& input) const {
+		int s1(size_t i, const string& input) const {
 			const auto& c = input[i];
 			if (i < input.size() && (isalpha(c) || isdigit(c))) {
 				return s1(++i, input);
@@ -195,8 +170,21 @@ public:
 		}
 
 		Token makeToken(const string& s) const {
-			cout << "(" << toString(ID) << ",\"" << s << "\"," << lineNum << ")" << endl;
-			return ID;
+			if (s == "Schemes") {
+				return Token(SCHEMES, s, lineNum);
+			}
+			else if (s == "Facts") {
+				return Token(FACTS, s, lineNum);
+			}
+			else if (s == "Rules") {
+				return Token(RULES, s, lineNum);
+			}
+			else if (s == "Queries") {
+				return Token(QUERIES, s, lineNum);
+			}
+			else {
+				return Token(ID, s, lineNum);
+			}
 		}
 	};
 
@@ -205,10 +193,35 @@ public:
 			const auto& c = input[i];
 			if (c == '\0') return i;
 			if (c == '\n') return i;
+			if (c == '|' && input[i-1] == '#') return s1(++i, input);
 			else return s0(++i, input);
+		}
+		int s1(int i, const string& input) const {
+			const auto& c = input[i];
+			if (c == '\0') {
+				return i;
+			}
+			if (c == '\n') {
+				tempLineNum++;
+				lineNum++;
+			}
+			if (c == '|') return s2(++i, input);
+			else return s1(++i, input);
+		}
+		int s2(int i, const string& input) const {
+			const auto& c = input[i];
+			if (c == '\0') return i;
+			if (c == '#' && input[i-1] == '|') return ++i;
+			if (c == '\n') {
+				tempLineNum++;
+				lineNum++; 
+				return s1(++i, input);
+			}
+			else return s1(++i, input);
 		}
 	public:
 		int read(const string& input) const {
+			tempLineNum = 0;
 			int i = 0;
 			if (input[0] == '#') {
 				return s0(++i, input);
@@ -217,19 +230,46 @@ public:
 		}
 
 		Token makeToken(const string& s) const {
-			cout << "(" << toString(COMMENT) << ",\"" << s << "\"," << lineNum << ")" << endl;
-			return COMMENT;
+			string sub;
+			if (s.length() > 1) {
+				sub = s.substr(s.size() - 2, s.size() - 1);
+			}
+			else {
+				sub == "I can write anything here that isnt't a newline I think!";
+			}
+			if (((tempLineNum > 0)/* || isSingleLineUnterminatingBlockComment*/) && (sub != "|#")) {
+				return Token(UNDEFINED, s, lineNum - tempLineNum);
+			}
+			return Token(COMMENT, s, lineNum - tempLineNum);
 		}
 	};
 
 	class String : public Automaton {
+
 		int s0(int i, const string& input) const {
 			const auto& c = input[i];
-			if (c == '\'') return ++i;
-			else return s0(++i, input);
+			if (c == '\'') return s1(++i, input);
+			//else if (c == '\'') return i;
+			if (c == '\n') {
+				tempLineNum++;
+				lineNum++;
+			}
+			else if (c == '\0') {
+				return i;
+			}
+			return s0(++i, input);
 		}
+
+		int s1(int i, const string& input) const {
+			const auto& c = input[i];
+			if (c == '\0') return i;
+			else if (c == '\'') return s0(++i, input);
+			return i;
+		}
+
 	public:
 		int read(const string& input) const {
+			tempLineNum = 0;
 			int i = 0;
 			if (input[0] == '\'') {
 				return s0(++i, input);
@@ -238,13 +278,24 @@ public:
 		}
 
 		Token makeToken(const string& s) const {
-			cout << "(" << toString(STRING) << ",\"" << s << "\"," << lineNum << ")" << endl;
-			return STRING;
+			auto& c = s.back();
+			string sub;
+			if (s.length() > 1) {
+				sub = s.substr(s.size() - 2, s.size() - 1);
+			}
+			else {
+				sub = "I can write anything here that isnt't a newline I think!";
+			}
+			if ((c != '\'') && (sub == "''")) {
+				return Token(UNDEFINED, s, lineNum - tempLineNum);
+			}
+			return Token(STRING, s, lineNum - tempLineNum);
 		}
 	};
 
 private:
 	vector<Automaton*> automata;
 	string& input;
+	vector<Token> tokens;
 };
 
