@@ -134,11 +134,10 @@ void Relation::query(Tuple tuplesToFind) {
 }
 
 Relation Relation::join(Relation b) {
-	
-	std::vector<int> matchColumnsA;
-	std::vector<int> matchColumnsB;
 
 	//Add columns that match to data structure, works fine
+	std::vector<int> matchColumnsA;
+	std::vector<int> matchColumnsB;
 	for (auto& column : scheme) {
 		for (auto& columnB : b.scheme) {
 			if (column == columnB) {
@@ -148,11 +147,28 @@ Relation Relation::join(Relation b) {
 		}
 	}
 
-	//Add columns that are unique to data structure
-
+	//Add columns that are unique. Since you are keeping all of A's columns this should only iterate through b
+	std::vector<std::string> uniqueColumnsB;
+	bool foundMatch = false;
+	for (auto& columnB : b.scheme) {
+		for (auto& column : matchColumnsB) {
+			if (column == b.scheme.getColumn(columnB)) foundMatch = true;
+		}
+		if (foundMatch == false) uniqueColumnsB.push_back(columnB);
+		foundMatch = false;
+	}
+	
 	//Combine schemes, then create return Relation
+	std::vector<Parameter> newScheme;
+	for (auto& param : this->scheme) {
+		newScheme.push_back(param);
+	}
+	for (auto& param : uniqueColumnsB) {
+		newScheme.push_back(param);
+	}
 
 	//Loop Tuples and add to return Relation
 
-
+	Relation c(this->name + "Prime", Tuple(newScheme));
+	return c;
 }

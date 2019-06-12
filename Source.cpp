@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
 
 	Relation b("b", Tuple(schemeB));
 
-	a.join(b);
+	std::cout << a.join(b).getName();
 
 	/*vector<Parameter> fact1;
 	fact1.push_back(Parameter("'1'"));
